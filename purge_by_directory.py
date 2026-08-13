@@ -22,16 +22,10 @@ El path se interpreta como una cadena de directorios anidados: "seccion/imagenes
 genera <match:recursive-dirs value="seccion"><match:recursive-dirs value="imagenes">,
 que purga recursivamente todo bajo /seccion/imagenes/.
 
-IMPORTANTE — ECCU no tiene selector de red (staging/production):
-    A diferencia de Fast Purge (que sí permite elegir --network), la ECCU
-    API (ver el schema en /eccu-api/v1/requests, additionalProperties: false)
-    no expone ningún parámetro de red, ni siquiera de forma no documentada
-    (verificado empíricamente). El request se resuelve contra la propiedad
-    tal como está activada. Si tu configuración está desplegada únicamente
-    en staging, un ECCU request puede fallar (Property Not Found) o no
-    tener efecto, porque no hay forma de apuntarlo explícitamente a staging.
-    Para purgar contenido que solo vive en staging, preferí purge_by_url.py
-    con --network staging (Fast Purge sí soporta staging explícitamente).
+Es asíncrono: el POST devuelve un requestId de inmediato, pero el request
+puede tardar varios minutos en resolverse. Usá --wait para esperar el
+resultado en la misma llamada, o consultá el estado más tarde con
+check_eccu_status.sh <requestId>.
 
 Referencias:
     https://techdocs.akamai.com/eccu/reference/post-request
