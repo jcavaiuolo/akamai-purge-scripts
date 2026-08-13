@@ -5,8 +5,8 @@ Este directorio contiene dos scripts independientes para purgar contenido en Aka
 ## Contenido
 
 - `.edgerc` — credenciales EdgeGrid (client_secret, host, access_token, client_token). **No compartir ni subir a ningún repositorio.**
-- `purge_by_url.py` — purga por URL vía **Fast Purge API v3**, leyendo una lista de URLs desde un archivo de texto. Soporta `production` y `staging`.
-- `purge_by_directory.py` — purga recursiva de un directorio vía **ECCU API** (Fast Purge no soporta purga recursiva por path).
+- `purge_by_url.py` — purga por URL vía **Fast Purge API v3**, leyendo una lista de URLs desde un archivo de texto. Soporta `production` y `staging`. Usalo cuando sabés exactamente qué URLs cambiaron; purga en segundos.
+- `purge_by_directory.py` — purga recursiva de un directorio vía **ECCU API** (Fast Purge no soporta purga recursiva por path). Usalo cuando necesitás limpiar toda una sección/carpeta sin enumerar cada archivo; es asíncrono y tarda varios minutos.
 - `urls_ejemplo.txt` — archivo de ejemplo con el formato esperado por `purge_by_url.py`. Reemplazá las URLs por las tuyas.
 - `verify_cache_keys.sh` — hace curl con el header `Pragma` de debug de Akamai a una o más URLs y muestra `X-Cache` (HIT/MISS), `X-Check-Cacheable`, `X-Cache-Key` y `X-True-Cache-Key`. Útil para confirmar el estado de caché antes y después de purgar.
 - `eccu_properties_visibles.txt` — listado de propiedades (hostnames) visibles vía ECCU para las credenciales configuradas en `.edgerc` (generado con `GET /eccu-api/v1/properties`). Útil para elegir contra qué propiedad probar cuando no sabés qué ve tu client.
@@ -59,9 +59,7 @@ Opciones útiles:
 - `--exact-match true|false` (default `true`)
 - `--action invalidate|delete` (default `invalidate`)
 - `--email tu@correo.com` (repetible, para notificaciones de estado)
-- `--wait` — consulta el estado del request cada 10s hasta que termine (útil porque ECCU es asíncrono y puede tardar minutos u horas). Si tu terminal corta la llamada antes de que termine `--wait`, podés chequear el estado más tarde haciendo un GET manual a `/eccu-api/v1/requests/{requestId}` con las mismas credenciales.
-
-**Limitación importante (verificada, no solo documentada):** la ECCU API no tiene parámetro de red (no existe un `--network` como en Fast Purge). El schema oficial de `/eccu-api/v1/requests` (`additionalProperties: false`) no admite ningún campo de red, y probarlo empíricamente con campos no documentados (`network`, `environment`, `targetEnvironment`) no cambió el comportamiento de la API. Si tu configuración está desplegada únicamente en staging, usá `purge_by_url.py --network staging` en su lugar.
+- `--wait` — consulta el estado del request cada 10s hasta que termine (útil porque ECCU es asíncrono y puede tardar varios minutos). Si tu terminal corta la llamada antes de que termine `--wait`, podés chequear el estado más tarde haciendo un GET manual a `/eccu-api/v1/requests/{requestId}` con las mismas credenciales.
 
 Ejemplo completo:
 
@@ -94,15 +92,6 @@ Ejemplo de salida real:
 ```
 
 Si el hostname de destino no tiene certificado TLS propio (el handshake HTTPS devuelve el certificado default de Akamai `CN=a248.e.akamai.net`), usá `http://` para esa URL en lugar de `https://`.
-
-## Diferencia entre ambos scripts de purga
-
-| | `purge_by_url.py` (Fast Purge) | `purge_by_directory.py` (ECCU) |
-|---|---|---|
-| Qué purga | URLs exactas, listadas una por una | Un directorio completo, recursivamente |
-| Velocidad | Segundos | Minutos a horas (asíncrono) |
-| Selector de red (staging/production) | Sí, explícito (`--network`) | No existe (ver limitación arriba) |
-| Cuándo usarlo | Sabés exactamente qué URLs cambiaron | Necesitás limpiar toda una sección/carpeta sin enumerar cada archivo |
 
 ## Referencias
 
