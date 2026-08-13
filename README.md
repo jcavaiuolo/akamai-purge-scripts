@@ -59,7 +59,32 @@ Opciones útiles:
 - `--exact-match true|false` (default `true`)
 - `--action invalidate|delete` (default `invalidate`)
 - `--email tu@correo.com` (repetible, para notificaciones de estado)
-- `--wait` — consulta el estado del request cada 10s hasta que termine (útil porque ECCU es asíncrono y puede tardar varios minutos). Si tu terminal corta la llamada antes de que termine `--wait`, podés chequear el estado más tarde haciendo un GET manual a `/eccu-api/v1/requests/{requestId}` con las mismas credenciales.
+- `--wait` — consulta el estado del request cada 10s hasta que termine (útil porque ECCU es asíncrono y puede tardar varios minutos). Si tu terminal corta la llamada antes de que termine `--wait`, podés chequear el estado más tarde con el `curl` de abajo.
+
+### Consultar el estado de un `requestId` con curl
+
+El endpoint de status (`GET /eccu-api/v1/requests/{requestId}`) también requiere autenticación EdgeGrid, así que no alcanza con un curl plano — hay que firmar el request. Este one-liner usa `edgegrid-python` (ya instalado) solo para generar el header `Authorization` y lo pasa a curl:
+
+```bash
+HOST=$(python3 -c "from akamai.edgegrid import EdgeRc; print(EdgeRc('.edgerc').get('default','host'))")
+REQUEST_ID=357713780   # reemplazá por el requestId que te devolvió el script
+
+AUTH_HEADER=$(python3 -c "
+from akamai.edgegrid import EdgeGridAuth, EdgeRc
+import requests
+edgerc = EdgeRc('.edgerc')
+req = requests.Request('GET', 'https://$HOST/eccu-api/v1/requests/$REQUEST_ID').prepare()
+auth = EdgeGridAuth(
+    client_token=edgerc.get('default', 'client_token'),
+    client_secret=edgerc.get('default', 'client_secret'),
+    access_token=edgerc.get('default', 'access_token'),
+)
+signed = auth(req)
+print(signed.headers['Authorization'])
+")
+
+curl -s -H "Authorization: $AUTH_HEADER" "https://$HOST/eccu-api/v1/requests/$REQUEST_ID"
+```
 
 Ejemplo completo:
 
