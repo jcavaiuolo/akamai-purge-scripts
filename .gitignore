@@ -1,0 +1,3 @@
+.edgerc
+__pycache__/
+*.pyc

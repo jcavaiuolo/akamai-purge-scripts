@@ -1,0 +1,5 @@
+# Una URL completa por línea (con esquema y host). Las líneas con # se ignoran.
+# Reemplazá estas URLs de ejemplo por las que necesites purgar.
+https://www.example.com/index.html
+https://www.example.com/assets/imagen1.png
+https://www.example.com/assets/imagen2.png
