@@ -9,6 +9,7 @@ Este directorio contiene dos scripts independientes para purgar contenido en Aka
 - `purge_by_directory.py` — purga recursiva de un directorio vía **ECCU API** (Fast Purge no soporta purga recursiva por path). Usalo cuando necesitás limpiar toda una sección/carpeta sin enumerar cada archivo; es asíncrono y tarda varios minutos.
 - `urls_ejemplo.txt` — archivo de ejemplo con el formato esperado por `purge_by_url.py`. Reemplazá las URLs por las tuyas.
 - `verify_cache_keys.sh` — hace curl con el header `Pragma` de debug de Akamai a una o más URLs y muestra `X-Cache` (HIT/MISS), `X-Check-Cacheable`, `X-Cache-Key` y `X-True-Cache-Key`. Útil para confirmar el estado de caché antes y después de purgar.
+- `check_eccu_status.sh` — consulta el estado de un `requestId` de ECCU (`GET /eccu-api/v1/requests/{requestId}`), firmando el request con EdgeGrid y haciendo la consulta con curl.
 - `eccu_properties_visibles.txt` — listado de propiedades (hostnames) visibles vía ECCU para las credenciales configuradas en `.edgerc` (generado con `GET /eccu-api/v1/properties`). Útil para elegir contra qué propiedad probar cuando no sabés qué ve tu client.
 
 ## Instalación
@@ -59,32 +60,15 @@ Opciones útiles:
 - `--exact-match true|false` (default `true`)
 - `--action invalidate|delete` (default `invalidate`)
 - `--email tu@correo.com` (repetible, para notificaciones de estado)
-- `--wait` — consulta el estado del request cada 10s hasta que termine (útil porque ECCU es asíncrono y puede tardar varios minutos). Si tu terminal corta la llamada antes de que termine `--wait`, podés chequear el estado más tarde con el `curl` de abajo.
+- `--wait` — consulta el estado del request cada 10s hasta que termine (útil porque ECCU es asíncrono y puede tardar varios minutos). Si tu terminal corta la llamada antes de que termine `--wait`, podés chequear el estado más tarde con `check_eccu_status.sh` (ver abajo).
 
-### Consultar el estado de un `requestId` con curl
-
-El endpoint de status (`GET /eccu-api/v1/requests/{requestId}`) también requiere autenticación EdgeGrid, así que no alcanza con un curl plano — hay que firmar el request. Este one-liner usa `edgegrid-python` (ya instalado) solo para generar el header `Authorization` y lo pasa a curl:
+### Consultar el estado de un `requestId` (`check_eccu_status.sh`)
 
 ```bash
-HOST=$(python3 -c "from akamai.edgegrid import EdgeRc; print(EdgeRc('.edgerc').get('default','host'))")
-REQUEST_ID=357713780   # reemplazá por el requestId que te devolvió el script
-
-AUTH_HEADER=$(python3 -c "
-from akamai.edgegrid import EdgeGridAuth, EdgeRc
-import requests
-edgerc = EdgeRc('.edgerc')
-req = requests.Request('GET', 'https://$HOST/eccu-api/v1/requests/$REQUEST_ID').prepare()
-auth = EdgeGridAuth(
-    client_token=edgerc.get('default', 'client_token'),
-    client_secret=edgerc.get('default', 'client_secret'),
-    access_token=edgerc.get('default', 'access_token'),
-)
-signed = auth(req)
-print(signed.headers['Authorization'])
-")
-
-curl -s -H "Authorization: $AUTH_HEADER" "https://$HOST/eccu-api/v1/requests/$REQUEST_ID"
+./check_eccu_status.sh 357713780
 ```
+
+El endpoint de status (`GET /eccu-api/v1/requests/{requestId}`) también requiere autenticación EdgeGrid, así que no alcanza con un curl plano — el script usa `edgegrid-python` internamente solo para firmar el request y generar el header `Authorization`, y hace la consulta real con `curl`.
 
 Ejemplo completo:
 
