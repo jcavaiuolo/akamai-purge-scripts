@@ -1,0 +1,4 @@
+# Un cache tag por línea. Las líneas con # se ignoran.
+# Reemplazá estos tags de ejemplo por los que necesites purgar.
+black-friday
+electronics

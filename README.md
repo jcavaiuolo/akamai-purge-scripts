@@ -1,13 +1,15 @@
 # Scripts de purga de caché Akamai
 
-Este directorio contiene dos scripts independientes para purgar contenido en Akamai, un script de verificación de estado de caché, y el archivo de credenciales que los scripts usan.
+Este directorio contiene tres scripts independientes para purgar contenido en Akamai, un script de verificación de estado de caché, y el archivo de credenciales que los scripts usan.
 
 ## Contenido
 
 - `.edgerc` — credenciales EdgeGrid (client_secret, host, access_token, client_token). **No compartir ni subir a ningún repositorio.**
 - `purge_by_url.py` — purga por URL vía **Fast Purge API v3**, leyendo una lista de URLs desde un archivo de texto. Soporta `production` y `staging`. Usalo cuando sabés exactamente qué URLs cambiaron; purga en segundos.
+- `purge_by_tag.py` — purga por **cache tag** (header `Edge-Cache-Tag`) vía Fast Purge API v3, desde un archivo o puntualmente con `--tag`. Usalo cuando el contenido a purgar comparte un tag asignado de antemano (ej. una categoría o campaña) y no querés enumerar URLs una por una.
 - `purge_by_directory.py` — purga recursiva de un directorio vía **ECCU API** (Fast Purge no soporta purga recursiva por path). Usalo cuando necesitás limpiar toda una sección/carpeta sin enumerar cada archivo; es asíncrono y tarda varios minutos.
 - `urls_ejemplo.txt` — archivo de ejemplo con el formato esperado por `purge_by_url.py`. Reemplazá las URLs por las tuyas.
+- `tags_ejemplo.txt` — archivo de ejemplo con el formato esperado por `purge_by_tag.py`. Reemplazá los tags por los tuyos.
 - `verify_cache_keys.sh` — hace curl con el header `Pragma` de debug de Akamai a una o más URLs y muestra `X-Cache` (HIT/MISS), `X-Check-Cacheable`, `X-Cache-Key` y `X-True-Cache-Key`. Útil para confirmar el estado de caché antes y después de purgar.
 - `check_eccu_status.sh` — consulta el estado de un `requestId` de ECCU (`GET /eccu-api/v1/requests/{requestId}`), firmando el request con EdgeGrid y haciendo la consulta con curl.
 - `eccu_properties_visibles.txt` — listado de propiedades (hostnames) visibles vía ECCU para las credenciales configuradas en `.edgerc` (generado con `GET /eccu-api/v1/properties`). Útil para elegir contra qué propiedad probar cuando no sabés qué ve tu client.
@@ -47,6 +49,26 @@ python3 purge_by_url.py urls_ejemplo.txt --action delete
 
 - `--network`: `production` (**default**) o `staging`. Si la propiedad que purgás solo está desplegada en staging, tenés que pasar `--network staging` explícitamente o la purga no tendrá efecto.
 - `--action`: `invalidate` (recomendado, default) o `delete`.
+
+## Uso: purga por cache tag (Fast Purge)
+
+**Requisito previo:** para que un objeto sea purgable por tag, tiene que tener el header de respuesta `Edge-Cache-Tag` configurado (en Property Manager o desde el origin) **antes** de que se cachee. Un tag que nunca fue asignado a ningún objeto no da error, simplemente no purga nada. Cada objeto cacheado soporta hasta 128 tags.
+
+Con archivo (mismo formato que `urls_ejemplo.txt`, un tag por línea):
+
+```bash
+python3 purge_by_tag.py tags_ejemplo.txt
+python3 purge_by_tag.py tags_ejemplo.txt --network staging
+```
+
+O puntual, sin archivo, con `--tag` (repetible):
+
+```bash
+python3 purge_by_tag.py --tag black-friday
+python3 purge_by_tag.py --tag black-friday --tag electronics --action delete
+```
+
+No se puede pasar un archivo y `--tag` al mismo tiempo. Mismos flags `--network` y `--action` que `purge_by_url.py`. A diferencia de las URLs (hasta 50.000 por request), los cache tags tienen su propio límite de tasa (token bucket de 5.000, recarga 500/min), por eso los lotes internos son de 5.000 en vez de 50.000.
 
 ## Uso: purga recursiva de directorio (ECCU)
 
@@ -106,6 +128,9 @@ Si el hostname de destino no tiene certificado TLS propio (el handshake HTTPS de
 
 - Fast Purge API v3: https://techdocs.akamai.com/purge-cache/reference/api-summary
 - Purge by URL, CP Code, or Cache Tag: https://techdocs.akamai.com/purge-cache/docs/purge-by-url-cp-code-or-cache-tag
+- Invalidate by cache tag (referencia de endpoint): https://techdocs.akamai.com/purge-cache/reference/post-invalidate-tag
+- Assign cache tags: https://techdocs.akamai.com/purge-cache/docs/assign-cache-tags
+- Rate limiting: https://techdocs.akamai.com/purge-cache/reference/rate-limiting
 - ECCU API — Create request: https://techdocs.akamai.com/eccu/reference/post-request
 - ECCU API v1 — spec OpenAPI oficial: https://github.com/akamai/akamai-apis/tree/main/apis/eccu-api/v1
 - Enhanced CCU Request Format (formato del XML metadata): https://techdocs.akamai.com/purge-cache/docs/create-eccu-req-file
